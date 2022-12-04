@@ -1,13 +1,17 @@
 
-(defn createWord
-  [alphabet, alphabetWord]
+(defn createWords
+  [alphabet, word]
   (if (empty? alphabet)
     []
-    (let [currentLetter (first alphabet), restAlph (rest alphabet)]
-     (if (.endsWith alphabetWord currentLetter)
-       (createWord restAlph alphabetWord)
-       (cons (str alphabetWord currentLetter) (createWord restAlph alphabetWord))
-      )
+    (let [
+          currentLetter (first alphabet),
+          restAlph (rest alphabet),
+          wordTail (last word)
+          ]
+     (if (= wordTail currentLetter)
+       (createWords restAlph word)
+       (cons (conj word currentLetter) (createWords restAlph word))
+    )
     )
   )
 )
@@ -16,8 +20,11 @@
   [alphabet, wordsSequence]
   (if (empty? wordsSequence)
     []
-    (let [currentAlphabetWord (first wordsSequence), restWords (rest wordsSequence)]
-       (concat (createWord alphabet currentAlphabetWord) (createWordsSequence alphabet restWords))
+    (let [currentWord (first wordsSequence), restWords (rest wordsSequence)]
+       (concat 
+        (createWords alphabet (if (coll? currentWord) currentWord [currentWord]))
+        (createWordsSequence alphabet restWords)
+      )
     )  
   )
 )
@@ -33,4 +40,7 @@
     )
 )
 
-(println (permute '("a" "b" "b" "c") 3))
+(doseq [item (permute '(a b c) 4)]
+   (println item))
+
+(println (count (permute '("a" "b" "c", "e") 4))) ;; 4 * 3 * 3 * 3 == 108
