@@ -2,10 +2,12 @@
   (* (/ (+ (f a) (f (+ a step))) 2) step)
 )
 
-(defn integrate [f, a, b, step]
-  (reduce + 
-    (map (fn [a_i] (nextIntegralSumElement f a_i step))
-      (range a b step)
+(defn integral [f]
+  (fn [b]
+    (reduce + 
+      (map (fn [a_i] (nextIntegralSumElement f a_i 0.1))
+        (range 0 b 0.1)
+      )
     )
   )
 )
@@ -21,11 +23,23 @@
   )
 )
 
+(defn integralWithMemoize [f]  
+  (fn [b]
+    (integrateWithMemoize f 0 b 0.1)
+  )
+)
+
+
 (defn sqr [x]
   (* x x)
 )
 
-(time (integrate sqr 0 1000 6))
-(time (integrate sqr 0 1000 6))
-(time (integrateWithMemoize sqr 0 1000 6))
-(time (integrateWithMemoize sqr 0 1000 6))
+(let [
+      simpleSqrIntegral (integral sqr),
+      memoizeSqrIntegral (integralWithMemoize sqr)
+]
+  (time (simpleSqrIntegral 10))
+  (time (simpleSqrIntegral 10))
+  (time (memoizeSqrIntegral 10))
+  (time (memoizeSqrIntegral 10))
+)
