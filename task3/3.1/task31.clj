@@ -19,10 +19,10 @@
 )
 
 (defn extractBatchByIndex [batchIndex, collection, batchSize] 
-  (take (* (+ 1 batchIndex) batchSize) (drop (* batchIndex batchSize) collection))
+  (take batchSize (drop (* batchIndex batchSize) collection))
 )
 
-(defn buildBatchsFromCoollection [collection batchsCount]
+(defn buildBatchsFromCollection [collection batchsCount]
   (let [batchSize (/ (count collection) batchsCount)]
     (map
      (fn [batchIndex] (extractBatchByIndex batchIndex collection batchSize))
@@ -36,7 +36,7 @@
 )
 
 (defn buildFutureFilterOfCollectionBatch [predicat, collection, threadsCount]
-  (->> (buildBatchsFromCoollection collection threadsCount)
+  (->> (buildBatchsFromCollection collection threadsCount)
        (map (fn [batch] (futureFilter predicat batch)) ,,)
        (doall)
   )
