@@ -1,6 +1,5 @@
 
-(defn createWords
-  [alphabet, word]
+(defn create-words [alphabet, word]
   (if (empty? alphabet)
     []
     (let [
@@ -9,21 +8,20 @@
           wordTail (last word)
           ]
      (if (= wordTail currentLetter)
-       (createWords restAlph word)
-       (cons (conj word currentLetter) (createWords restAlph word))
+       (create-words restAlph word)
+       (cons (conj word currentLetter) (create-words restAlph word))
     )
     )
   )
 )
 
-(defn createWordsSequence
-  [alphabet, wordsSequence]
+(defn create-words-sequence [alphabet, wordsSequence]
   (if (empty? wordsSequence)
     []
     (let [currentWord (first wordsSequence), restWords (rest wordsSequence)]
        (concat 
-        (createWords alphabet (if (coll? currentWord) currentWord [currentWord]))
-        (createWordsSequence alphabet restWords)
+        (create-words alphabet (if (coll? currentWord) currentWord [currentWord]))
+        (create-words-sequence alphabet restWords)
       )
     )  
   )
@@ -35,7 +33,7 @@
     (
       if (= wordSize 1)
       wordsSequence
-      (permute alphabet (createWordsSequence alphabet wordsSequence) (dec wordSize))
+      (permute alphabet (create-words-sequence alphabet wordsSequence) (dec wordSize))
     )
     )
 )
