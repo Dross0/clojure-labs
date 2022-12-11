@@ -32,7 +32,7 @@
 )
 
 (defn future-filter [predicat, collection]
-  (future (my-filter predicat, collection))
+  (future (doall (filter predicat, collection)))
 )
 
 (defn build-future-filter-of-collection-batch [predicat, collection, threadsCount]
