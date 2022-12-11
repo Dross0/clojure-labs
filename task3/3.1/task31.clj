@@ -23,7 +23,7 @@
 )
 
 (defn build-batchs-from-collection [collection batchsCount]
-  (let [batchSize (/ (count collection) batchsCount)]
+  (let [batchSize (int (Math/ceil (/ (count collection) batchsCount)))]
     (map
      (fn [batchIndex] (extract-batch-by-index batchIndex collection batchSize))
      (range 0 batchsCount)
@@ -43,7 +43,7 @@
 )
 
 (defn parallel-filter [predicat, collection, threadsCount]
-   (reduce concat [] (map deref (build-future-filter-of-collection-batch predicat, collection, threadsCount)))
+  (mapcat identity (map deref (build-future-filter-of-collection-batch predicat, collection, threadsCount)))
 )
 
 (let [collectionForFilter (range 0 100)]
