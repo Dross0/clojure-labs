@@ -43,7 +43,7 @@
 )
 
 (defn parallel-filter [predicat, collection, threadsCount]
-  (mapcat identity (map deref (build-future-filter-of-collection-batch predicat, collection, threadsCount)))
+  (mapcat deref (build-future-filter-of-collection-batch predicat, collection, threadsCount))
 )
 
 (let [collectionForFilter (range 0 100)]
