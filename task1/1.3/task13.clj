@@ -2,12 +2,12 @@
 (- 0 value)
 )
 
-(defn isEven [value]
+(defn is-even [value]
   (= 0 (mod value 2)
   )
 )
 
-(defn my_map [func collection]
+(defn my-map [func collection]
   (reduce (fn [accCol, value] (conj accCol (func value))) 
           [] 
           collection
@@ -16,7 +16,7 @@
 
 
 
-(defn my_filter [predicat, collection]
+(defn my-filter [predicat, collection]
   (reduce (fn [accCol, value]
             (if (predicat value)
             (conj accCol value)
@@ -27,5 +27,5 @@
   )
 )
 
-(println (my_filter isEven [1, 2, 3, 4, 5, 6]))
-(println (my_map neg [1, 2, 3, 4, 5, 6]))
+(println (my-filter is-even [1, 2, 3, 4, 5, 6]))
+(println (my-map neg [1, 2, 3, 4, 5, 6]))
