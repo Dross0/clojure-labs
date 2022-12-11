@@ -1,4 +1,4 @@
-(defn createWords
+(defn create-words
   [alphabet, word, out]
   (if (empty? alphabet)
     out
@@ -15,13 +15,13 @@
   )
 )
 
-(defn createWordsSequence
+(defn create-words-sequence
   [alphabet, wordsSequence, out]
   (if (empty? wordsSequence)
     out
     (let [currentWord (first wordsSequence), restWords (rest wordsSequence)]
       (recur 
-       alphabet restWords (createWords alphabet (if (coll? currentWord) currentWord [currentWord]) out))
+       alphabet restWords (create-words alphabet (if (coll? currentWord) currentWord [currentWord]) out))
       )
   )  
 )
@@ -32,7 +32,7 @@
     (
       if (= wordSize 1)
       wordsSequence
-      (recur alphabet (createWordsSequence alphabet wordsSequence []) (dec wordSize))
+      (recur alphabet (create-words-sequence alphabet wordsSequence []) (dec wordSize))
     )
     )
 )
