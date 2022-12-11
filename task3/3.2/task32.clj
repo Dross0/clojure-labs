@@ -1,13 +1,13 @@
-(defn isEven [value]
+(defn is-even [value]
   (= 0 (mod value 2))
 )
 
-(defn heavyIsEven [value]
+(defn heavy-is-even [value]
   (Thread/sleep 40) 
-  (isEven value)
+  (is-even value)
 )
 
-(defn my_filter [predicat, collection]
+(defn my-filter [predicat, collection]
   (reduce (fn [accCol, value]
             (if (predicat value)
             (conj accCol value)
@@ -18,69 +18,62 @@
   )
 )
 
-(defn extractBatchByIndex [batchIndex, collection, batchSize] 
-  (take batchSize (drop (* batchIndex batchSize) collection))
-)
-
-(defn buildBatchsFromCollection [collection batchSize batchsCount]
-  (map
-   (fn [batchIndex] (extractBatchByIndex batchIndex collection batchSize))
-   (range 0 batchsCount)
-  )
-)
-
-(defn futureFilter [predicat, collection]
-  (future (my_filter predicat, collection))
-)
-
-(defn buildFutureFilterOfCollectionBatch [predicat, collection, threadBatchSize, threadsCount]
-  (->> (buildBatchsFromCollection collection threadBatchSize threadsCount)
-       (map (fn [batch] (futureFilter predicat batch)) ,,)
-       (doall)
-  )
-)
-
-(defn subCollectionParallelFilter [predicat, collection, threadBatchSize, threadsCount]
-  (map deref (buildFutureFilterOfCollectionBatch predicat collection threadBatchSize threadsCount))
-)
-
-
-(defn buildLazySubCollections [collection threadBatchSize threadsCount]
+(defn build-batchs-from-collection [collection batchsCount]
   (if (empty? collection)
     ()
-    (let [
-          subCollectionSize (* threadBatchSize threadsCount),
-          currentSubCollection (take subCollectionSize collection) 
-          restSubCollections (drop subCollectionSize collection)
-      ]
-      (lazy-seq (cons currentSubCollection (buildLazySubCollections restSubCollections threadBatchSize threadsCount)))
+    (lazy-seq 
+       (cons 
+          (take batchsCount collection)
+          (build-batchs-from-collection (drop batchsCount collection) batchsCount)
+       )
     )
   )
 )
 
-(defn lazyParallelFilter 
-  (
-    [predicat, collection, threadsCount]
-    (lazyParallelFilter predicat, collection, threadsCount, 30)
+(defn future-filter [predicat, collection]
+  (future (my-filter predicat, collection))
+)
+
+(defn future-filter-batch [predicat batch threadsCount]
+  (map 
+   deref
+   (doall (map (fn [threadBatch] (future-filter predicat threadBatch)) batch))
   )
-  (
-    [predicat, collection, threadsCount, threadBatchSize]
-    (flatten
-      (map 
-       (fn [subCollection] (subCollectionParallelFilter predicat subCollection threadBatchSize threadsCount))
-       (buildLazySubCollections collection threadBatchSize threadsCount)
-      )
+)
+
+(defn build-future-filter-of-collection-batch [predicat, collection, threadsCount, threadBatchSize]
+  (let [
+        batchsCollection (build-batchs-from-collection collection threadBatchSize)
+  ]
+    (->> (build-batchs-from-collection batchsCollection threadsCount)
+         (map (fn [batch] (future-filter-batch predicat batch threadsCount)) ,,)
+         (apply concat)
     )
   )
 )
 
-(let [collectionForFilter (range 0 1000)]
+(defn lazy-parallel-filter 
+  ([predicat, collection, threadsCount]
+    (lazy-parallel-filter predicat, collection, threadsCount, 10)
+  )
+  ([predicat, collection, threadsCount, threadBatchSize]
+    (reduce 
+       concat 
+       [] 
+       (build-future-filter-of-collection-batch predicat collection threadsCount threadBatchSize)
+    )
+  )
+)
+
+(let [collectionForFilter (range 0 200)]
   (print "Simple filter: ")
-  (time (doall (my_filter heavyIsEven collectionForFilter)))
+  (time (my-filter heavy-is-even collectionForFilter))
   (print "1 Thread filter: ")
-  (time (lazyParallelFilter heavyIsEven collectionForFilter 1))
+  (time (doall (lazy-parallel-filter heavy-is-even collectionForFilter 1)))
   (print "2 Thread filter: ")
-  (time (lazyParallelFilter heavyIsEven collectionForFilter 2))
+  (time (doall (lazy-parallel-filter heavy-is-even collectionForFilter 2)))
   (print "3 Thead filter: ")
-  (time (lazyParallelFilter heavyIsEven collectionForFilter 3))
+  (time (doall (lazy-parallel-filter heavy-is-even collectionForFilter 3)))
+  (println (lazy-parallel-filter #(> (count %) 1) [[1] [2 3] [4] [5 6 7]] 1))
+  (println (my-filter #(> (count %) 1) [[1] [2 3] [4] [5 6 7]]))
 )
