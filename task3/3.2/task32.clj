@@ -57,9 +57,8 @@
     (lazy-parallel-filter predicat, collection, threadsCount, 10)
   )
   ([predicat, collection, threadsCount, threadBatchSize]
-    (reduce 
-       concat 
-       [] 
+    (mapcat 
+       identity
        (build-future-filter-of-collection-batch predicat collection threadsCount threadBatchSize)
     )
   )
