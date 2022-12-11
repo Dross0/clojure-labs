@@ -1,13 +1,13 @@
-(defn isEven [value]
+(defn is-even [value]
   (= 0 (mod value 2))
 )
 
-(defn heavyIsEven [value]
+(defn heavy-is-even [value]
   (Thread/sleep 40) 
-  (isEven value)
+  (is-even value)
 )
 
-(defn my_filter [predicat, collection]
+(defn my-filter [predicat, collection]
   (reduce (fn [accCol, value]
             (if (predicat value)
             (conj accCol value)
@@ -18,43 +18,43 @@
   )
 )
 
-(defn extractBatchByIndex [batchIndex, collection, batchSize] 
+(defn extract-batch-by-index [batchIndex, collection, batchSize] 
   (take batchSize (drop (* batchIndex batchSize) collection))
 )
 
-(defn buildBatchsFromCollection [collection batchsCount]
+(defn build-batchs-from-collection [collection batchsCount]
   (let [batchSize (/ (count collection) batchsCount)]
     (map
-     (fn [batchIndex] (extractBatchByIndex batchIndex collection batchSize))
+     (fn [batchIndex] (extract-batch-by-index batchIndex collection batchSize))
      (range 0 batchsCount)
     )
   )
 )
 
-(defn futureFilter [predicat, collection]
-  (future (my_filter predicat, collection))
+(defn future-filter [predicat, collection]
+  (future (my-filter predicat, collection))
 )
 
-(defn buildFutureFilterOfCollectionBatch [predicat, collection, threadsCount]
-  (->> (buildBatchsFromCollection collection threadsCount)
-       (map (fn [batch] (futureFilter predicat batch)) ,,)
+(defn build-future-filter-of-collection-batch [predicat, collection, threadsCount]
+  (->> (build-batchs-from-collection collection threadsCount)
+       (map (fn [batch] (future-filter predicat batch)) ,,)
        (doall)
   )
 )
 
-(defn parallelFilter [predicat, collection, threadsCount]
-  (flatten
-   (map deref (buildFutureFilterOfCollectionBatch predicat, collection, threadsCount))
-  )
+(defn parallel-filter [predicat, collection, threadsCount]
+   (reduce concat [] (map deref (build-future-filter-of-collection-batch predicat, collection, threadsCount)))
 )
 
-(let [collectionForFilter (range 0 1000)]
+(let [collectionForFilter (range 0 100)]
   (print "Simple filter: ")
-  (time (doall (my_filter heavyIsEven collectionForFilter)))
+  (time (doall (my-filter heavy-is-even collectionForFilter)))
   (print "1 Thread filter: ")
-  (time (parallelFilter heavyIsEven collectionForFilter 1))
+  (time (parallel-filter heavy-is-even collectionForFilter 1))
   (print "2 Thread filter: ")
-  (time (parallelFilter heavyIsEven collectionForFilter 2))
+  (time (parallel-filter heavy-is-even collectionForFilter 2))
   (print "3 Thead filter: ")
-  (time (parallelFilter heavyIsEven collectionForFilter 3))
+  (time (doall (parallel-filter heavy-is-even collectionForFilter 3)))
+  (println (parallel-filter #(> (count %) 1) [[1] [2 3] [4] [5 6 7]] 1))
+  (println (my-filter #(> (count %) 1) [[1] [2 3] [4] [5 6 7]]))
 )
