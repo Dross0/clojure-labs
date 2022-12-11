@@ -1,40 +1,51 @@
-(defn create-words
-  [alphabet, word, out]
-  (if (empty? alphabet)
-    out
-    (let [
-          currentLetter (first alphabet),
-          restAlph (rest alphabet),
-          wordTail (last word)
-          ]
-     (if (= wordTail currentLetter)
-       (recur restAlph word out)
-       (recur restAlph word (conj out (conj word currentLetter)))
-    )
+(defn create-words [initialAlphabet, wordToBuild]
+  (loop [
+         out '(),
+         alphabet initialAlphabet,
+         word wordToBuild
+        ]
+    (if (empty? alphabet)
+      out
+      (let [
+            currentLetter (first alphabet),
+            restAlph (rest alphabet),
+            wordTail (last word)
+            ]
+       (if (= wordTail currentLetter)
+         (recur out restAlph word)
+         (recur (cons (conj word currentLetter) out) restAlph word)
+      )
+      )
     )
   )
 )
 
-(defn create-words-sequence
-  [alphabet, wordsSequence, out]
-  (if (empty? wordsSequence)
-    out
-    (let [currentWord (first wordsSequence), restWords (rest wordsSequence)]
-      (recur 
-       alphabet restWords (create-words alphabet (if (coll? currentWord) currentWord [currentWord]) out))
-      )
+(defn create-words-sequence [alphabet, initialWordsSequence]
+  (loop [
+         out '(),
+         wordsSequence initialWordsSequence
+        ]
+    (if (empty? wordsSequence)
+      out
+      (let [currentWord (first wordsSequence)]
+        (recur 
+          (concat out (create-words alphabet (if (coll? currentWord) currentWord [currentWord]))) (rest wordsSequence))
+        )
+    )
   )  
 )
 
-(defn permute
-    ([alphabet, wordSize] (permute alphabet, alphabet, wordSize))
-    ([alphabet, wordsSequence, wordSize]
+(defn permute [alphabet, wordSize]
+  (loop [
+         wordsSequence '([]),
+         currentWordSize wordSize
+        ]
     (
-      if (= wordSize 1)
+      if (= currentWordSize 0)
       wordsSequence
-      (recur alphabet (create-words-sequence alphabet wordsSequence []) (dec wordSize))
+      (recur (create-words-sequence alphabet wordsSequence) (dec currentWordSize))
     )
-    )
+  )
 )
 
 (doseq [item (permute '(a b c) 4)]
