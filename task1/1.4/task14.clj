@@ -1,11 +1,11 @@
-(defn my_map [func collection]
+(defn my-map [func collection]
   (reduce (fn [accCol, value] (conj accCol (func value))) 
           [] 
           collection
   )
 )
 
-(defn my_filter [predicat, collection]
+(defn my-filter [predicat, collection]
   (reduce (fn [accCol, value]
             (if (predicat value)
             (conj accCol value)
@@ -16,36 +16,36 @@
   )
 )
 
-(defn findAlphabetLettersToAdd [alphabet, word]
-  (my_filter 
+(defn find-alphabet-letters-to-add [alphabet, word]
+  (my-filter 
     (fn [alphWord] (not= (last word) alphWord))
     alphabet
   )
 )
 
-(defn createWords [alphabet, word]
-(my_map
+(defn create-words [alphabet, word]
+(my-map
  (fn [alphWord] (conj word alphWord))
- (findAlphabetLettersToAdd alphabet, word)
+ (find-alphabet-letters-to-add alphabet, word)
 )
 )
 
-(defn newWordsList [alphabet, prevWords]
-  (my_map (fn [word] (createWords alphabet (if (coll? word) word [word]))) prevWords)
+(defn new-words-list [alphabet, prevWords]
+  (my-map (fn [word] (create-words alphabet (if (coll? word) word [word]))) prevWords)
 )
 
-(defn createWordsSequence [alphabet, wordsSequence]
+(defn create-words-sequence [alphabet, wordsSequence]
   (reduce
    (fn [acc, word] (concat acc word))
-   (newWordsList alphabet wordsSequence)
+   (new-words-list alphabet wordsSequence)
   )
 )
 
 (defn permute [alphabet, sequenceSize]
   (reduce 
-   (fn [acc, element] (createWordsSequence alphabet acc))
-   alphabet
-   (range 1 sequenceSize)
+   (fn [acc, element] (create-words-sequence alphabet acc))
+   '([])
+   (range 0 sequenceSize)
    ) 
 )
 
