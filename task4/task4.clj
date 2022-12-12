@@ -157,6 +157,78 @@
   )
 )
 
+(defn can-apply-distribution?
+  "Check that Distribution rule can applied to expr"
+  [expr]
+  (or 
+   (and (conjuction? expr) (disjunction? (last expr)))
+   (and (disjunction? expr) (conjuction? (last expr)))
+   (and (conjuction? expr) (disjunction? (second expr)))
+   (and (disjunction? expr) (conjuction? (second expr)))
+  )
+)
+
+(defn conjuction-distribution
+  "Transform expr following conjuction Distribution law. A * (B + C) = AB + AC"
+  [expr]
+  (cond 
+    (disjunction? (second expr)) (  ;; (B + C) * A
+           let [
+                a (last expr)
+                b (second (second expr))
+                c (last (second expr))
+              ]
+            (disjunction (conjuction a b) (conjuction a c))
+    )
+    (disjunction? (last expr)) (  ;; A * (B + C)
+           let [
+                a (second expr)
+                b (second (last expr))
+                c (last (last expr))
+              ]
+            (disjunction (conjuction a b) (conjuction a c))
+    )
+    :else expr
+  )
+)
+
+(defn disjunction-distribution
+  "Transform expr following disjunction Distribution law. A + (B*C) = (A+B)*(A+C)C"
+  [expr]
+  (cond 
+    (conjuction? (second expr)) (  ;; (B * C) + A
+           let [
+                a (last expr)
+                b (second (second expr))
+                c (last (second expr))
+              ]
+            (conjuction (disjunction a b) (disjunction a c))
+    )
+    (conjuction? (last expr)) (  ;; A + (B * C)
+           let [
+                a (second expr)
+                b (second (last expr))
+                c (last (last expr))
+              ]
+            (conjuction (disjunction a b) (disjunction a c))
+    )
+    :else expr
+  )
+)
+
+(defn distribution 
+  "Transform expr following Distribution law. A * (B + C) = AB + AC, A + (B*C) = (A+B)*(A+C)"
+  [expr]
+  (if (can-apply-distribution? expr)
+    (cond
+      (conjuction? expr) (conjuction-distribution expr)
+      (disjunction? expr) (disjunction-distribution expr)
+      :else expr  
+    )
+    expr
+  )
+)
+
 
 (deftest true-check-test
   (is (True? True))
@@ -347,6 +419,48 @@
   )     
 )
 
+(deftest can-apply-distribution-check-test
+  (let [
+        vA (Var :a)
+        vB (Var :b)
+        vC (Var :c)
+        conjuct (conjuction vB vC)
+        disjunct (disjunction vB vC)
+        ]
+    (is (can-apply-distribution? (disjunction vA conjuct)))
+    (is (can-apply-distribution? (disjunction conjuct vA)))
+    (is (can-apply-distribution? (conjuction vA disjunct)))
+    (is (can-apply-distribution? (conjuction disjunct vA)))
+    (is (not (can-apply-distribution? (conjuction vA vB))))
+    (is (not (can-apply-distribution? (conjuction vA conjuct))))
+    (is (not (can-apply-distribution? (disjunction vA disjunct))))
+    (is (not (can-apply-distribution? (disjunction vA vB))))
+  )     
+)
+
+
+(deftest distribution-test
+  (let [
+        vA (Var :a)
+        vB (Var :b)
+        vC (Var :c)
+        conjuct (conjuction vB vC)
+        disjunct (disjunction vB vC)
+        disjunctDistRes (conjuction (disjunction vA vB) (disjunction vA vC))
+        conjuctDistRes (disjunction (conjuction vA vB) (conjuction vA vC))
+        ]
+    (is (= disjunctDistRes (distribution (disjunction vA conjuct))))
+    (is (= disjunctDistRes (distribution (disjunction conjuct vA))))
+    (is (= conjuctDistRes (distribution (conjuction vA disjunct))))
+    (is (= conjuctDistRes (distribution (conjuction disjunct vA))))
+    (is (= vA (distribution vA)))
+    (is (= (conjuction vB vA) (distribution (conjuction vB vA))))
+    (is (= (disjunction vB vA) (distribution (disjunction vB vA))))
+  )     
+)
+
+
+
 (true-check-test)
 (false-check-test)
 (const-check-test)
@@ -367,3 +481,5 @@
 (neg-disjunction-check-test)
 (remove-double-neg-test)
 (de-morgan-test)
+(can-apply-distribution-check-test)
+(distribution-test)
