@@ -1,7 +1,5 @@
-(ns dnf.core
-  (:gen-class)
-  (:require [clojure.set :as cset]
-            [clojure.test :refer [deftest testing is]])
+(ns task4
+  (:require [clojure.test :refer [deftest testing is]])
 )
 
 ;; boolean константы
@@ -226,6 +224,39 @@
       :else expr  
     )
     expr
+  )
+)
+
+(defn var-at-args? 
+  "Check that expr arguments include var"
+  [varExpr, expr]
+  (and 
+     (Var? varExpr)
+     (let [searchingVarName (Var-name varExpr)]
+      (some (fn [varName] (= searchingVarName varName)) (map Var-name (rest expr)))
+     )  
+  ) 
+)
+
+(defn absorption? 
+  "Check that Absorption law can applied"
+  [varExpr, operation, operationCheck]
+  (and (Var? varExpr) (operationCheck operation) (var-at-args? varExpr operation))
+)
+
+(defn absorption
+  "Transform expr following Absorption law. A * (A + B) = A, A + (A*B) = A"
+  [expr]
+  (let [
+        firstArg (second expr)
+        secondArg (last expr)
+      ]
+    (cond (and (conjuction? expr) (absorption? firstArg secondArg disjunction?)) firstArg
+          (and (conjuction? expr) (absorption? secondArg firstArg disjunction?)) secondArg
+          (and (disjunction? expr) (absorption? firstArg secondArg conjuction?)) firstArg
+          (and (disjunction? expr) (absorption? secondArg firstArg conjuction?)) secondArg
+          :else expr  
+    )
   )
 )
 
@@ -459,7 +490,38 @@
   )     
 )
 
+(deftest var-at-args-check-test
+  (let [
+        vA (Var :a)
+        vB (Var :b)
+      ]
+    (is (var-at-args? vA (disjunction vA True vB)))
+    (is (var-at-args? vA (conjuction True vA vB)))
+    (is (var-at-args? vA (negation vA)))
+    (is (not (var-at-args? vA (negation vB))))
+    (is (not (var-at-args? vA (disjunction True vB))))
+    (is (not (var-at-args? vA (conjuction True vB))))
+  )     
+)
 
+(deftest absorption-test
+  (let [
+        vA (Var :a)
+        vB (Var :b)
+        conjuct (conjuction vA vB)
+        disjunct (disjunction vA vB)
+      ]
+    (is (= vA (absorption (conjuction vA disjunct ))))
+    (is (= vA (absorption (conjuction disjunct  vA))))
+    (is (= vA (absorption (disjunction conjuct vA))))
+    (is (= vA (absorption (disjunction vA conjuct))))
+    (is (not (= vA (absorption (negation vA)))))
+    (is (not (= vA (absorption (disjunction vA (conjuction vB True))))))
+    (is (not (= vA (absorption (conjuction vA (disjunction vB True))))))
+    (is (not (= vA (absorption (conjuction vA conjuct)))))
+    (is (not (= vA (absorption (disjunction vA disjunct )))))
+  )     
+)
 
 (true-check-test)
 (false-check-test)
@@ -483,3 +545,5 @@
 (de-morgan-test)
 (can-apply-distribution-check-test)
 (distribution-test)
+(var-at-args-check-test)
+(absorption-test)
