@@ -2,28 +2,30 @@
   (* (/ (+ (f a) (f (+ a step))) 2) step)
 )
 
-(defn integrate [f, b, step]
-  (if (<= b 0)
-      0
-      (+ (next-integral-sum-element f (- b step) step) (integrate f (- b step) step))
+(defn sum-elements [f step stepsSeq]
+  (map 
+     (fn [a_i] (next-integral-sum-element f a_i step)) 
+     stepsSeq
   )
 )
 
-(defn integral [f, step]
+(defn integral [f step]
   (fn [b]
-    (integrate f b step)
+    (reduce + (sum-elements f step (range 0 b step)))
   )
 )
 
-(defn partial-solutions-sequence [f a step]
-  (lazy-seq (cons (next-integral-sum-element f a step) (partial-solutions-sequence f (+ a step) step)))
-)
 
 (defn integral-with-partial-solution-sequence [f step]
-  (fn [b]
-    (reduce + (take (/ b step) (partial-solutions-sequence f 0 step)))
+  (let [
+        solutions (reductions + 0 (sum-elements f step (iterate (partial + step) 0)))
+      ]
+    (fn [b]
+      (nth solutions (int (/ b step)))
+    )
   )
 )
+
 
 (defn sqr [x]
   (* x x)
@@ -34,11 +36,15 @@
       partialSolutionSqrIntegral (integral-with-partial-solution-sequence sqr 1)
 ]
   (print "Simple integral [FIRST RUN]: ")
-  (time (simpleSqrIntegral 100))
+  (time (simpleSqrIntegral 100000))
   (print "Simple integral [SECOND RUN]: ")
-  (time (simpleSqrIntegral 99))
+  (time (simpleSqrIntegral 99999))
+  (print "Simple integral [THIRD RUN]: ")
+  (time (simpleSqrIntegral 100001))
   (print "Patrial solution integral [FIRST RUN]: ")
-  (time (partialSolutionSqrIntegral 100))
+  (time (partialSolutionSqrIntegral 100000))
   (print "Patrial solution integral [SECOND RUN]: ")
-  (time (partialSolutionSqrIntegral 99))
+  (time (partialSolutionSqrIntegral 99999))
+  (print "Patrial solution integral [THIRD RUN]: ")
+  (time (partialSolutionSqrIntegral 100001))
 )
