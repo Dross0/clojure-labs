@@ -131,37 +131,76 @@
   (and (negation? expr) (disjunction? (second expr)))
 )
 
+(defn double-neg? 
+  "Check that expr is double negation"
+  [expr]
+  (and (negation? expr) (negation? (second expr)))
+)
+
 (defn remove-double-neg
   "Remove double neg of expr. neg(neg(expr)) = expr"
   [expr]
-  (if (and (negation? expr) (negation? (second expr)))
+  (if (double-neg? expr)
     (second (second expr))
     expr
   )
 )
 
+(defn can-de-morgan-apply? 
+  "Check that expr can modified by De Morgan rule" 
+  [expr]
+  (or (neg-conjuction? expr) (neg-disjunction? expr))
+)
   
 (defn de-morgan 
   "Transform expr following De Morgan rule"
   [expr]
   (cond
-    (neg-conjuction? expr) ( let [conjuctArgs (rest (second expr))]
+    (neg-conjuction? expr) (let [conjuctArgs (rest (second expr))]
                      (apply disjunction (map negation conjuctArgs))
     )
-    (neg-disjunction? expr) ( let [disjunctArgs (rest (second expr))]
+    (neg-disjunction? expr) (let [disjunctArgs (rest (second expr))]
                      (apply conjuction (map negation disjunctArgs))
     )
     :else expr  
   )
 )
 
+(defn de-morgan-recur
+  "Recur transform expr following De Morgan rule"
+  [expr]
+  (cond
+    (neg-conjuction? expr) (let [
+                                 conjuctArgs (rest (second expr))
+                                 negArgs (map negation conjuctArgs)
+                            ]
+                     (apply disjunction (map de-morgan-recur negArgs))
+    )
+    (neg-disjunction? expr) (let [
+                                  disjunctArgs (rest (second expr))
+                                  negArgs (map negation disjunctArgs)
+                            ]
+                     (apply conjuction (map de-morgan-recur negArgs))
+    )
+    :else expr  
+  )
+)
+
+(defn can-apply-conjuction-distribution? 
+  "Check that expr following conjuction Distribution law. A * (B + C) = AB + AC"
+  [expr]
+  (or 
+   (and (conjuction? expr) (disjunction? (last expr)))
+   (and (conjuction? expr) (disjunction? (second expr)))
+  )
+)
+  
 (defn can-apply-distribution?
   "Check that Distribution rule can applied to expr"
   [expr]
   (or 
-   (and (conjuction? expr) (disjunction? (last expr)))
+   (can-apply-conjuction-distribution? expr)
    (and (disjunction? expr) (conjuction? (last expr)))
-   (and (conjuction? expr) (disjunction? (second expr)))
    (and (disjunction? expr) (conjuction? (second expr)))
   )
 )
@@ -191,7 +230,7 @@
 )
 
 (defn disjunction-distribution
-  "Transform expr following disjunction Distribution law. A + (B*C) = (A+B)*(A+C)C"
+  "Transform expr following disjunction Distribution law. A + (B*C) = (A+B)*(A+C)"
   [expr]
   (cond 
     (conjuction? (second expr)) (  ;; (B * C) + A
@@ -238,6 +277,16 @@
   ) 
 )
 
+(defn idempotent-law 
+  "Transform expr following Idempotent law. A * A = A, A + A = A"  
+  [expr] 
+  (cond 
+    (conjuction? expr) (apply conjuction (distinct (rest expr)))
+    (disjunction? expr) (apply disjunction (distinct (rest expr)))
+    :else expr
+  )
+)
+
 (defn absorption? 
   "Check that Absorption law can applied"
   [varExpr, operation, operationCheck]
@@ -256,6 +305,125 @@
           (and (disjunction? expr) (absorption? firstArg secondArg conjuction?)) firstArg
           (and (disjunction? expr) (absorption? secondArg firstArg conjuction?)) secondArg
           :else expr  
+    )
+  )
+)
+
+(defn contains-conjuction-inverse-law?
+  "Check that conjuction Inverse law can applied"
+  [expr]
+  (let [args (rest expr)]
+    (some (fn [arg] (some (partial = (negation arg)) args)) args)
+  )
+)
+
+(defn conjuction-inverse-law 
+  "Transform conjuction expr following Inverse law. A * neg(A) = false"
+  [expr] 
+  (if (and (conjuction? expr) (contains-conjuction-inverse-law? expr))
+    False
+    expr
+  )
+)
+
+(defn remove-one-arg-conjuct-disjunct
+  "Remove operation if it has one argument. (conjuction A) = A"
+  [expr]
+  (if (and (or (conjuction? expr) (disjunction? expr)) (= 1 (count (rest expr))))
+    (second expr)
+    expr
+  )
+)
+
+(defn collect-nested-conjuction-args
+  "Collect all nested conjuction arguments. (conjuction A (conjuction (conjuction B) C) = [A, B, C]"
+  [expr]
+  (reduce 
+    (fn [args, arg] 
+      (if (conjuction? arg)
+        (concat args (collect-nested-conjuction-args arg))
+        (conj args arg)
+      ) 
+    )
+    []
+    (rest expr)
+  )
+)
+
+(defn flatten-conjuction 
+  "Apply flatten conjuction on expr. A*(B*(C*D)) = A*B*C*D"
+  [expr]
+  (if (conjuction? expr)
+    (apply conjuction (collect-nested-conjuction-args expr))
+    expr
+  )
+)
+
+(defn identity-law
+  "Transform expr following identity law. A * 0 = 0, A * 1 = A, A + 0 = A, A + 1 = 1"
+  [expr]
+  (let [
+        args (rest expr)
+        containsFalse (some False? args)
+        containsTrue (some True? args)
+        ]
+    (cond 
+      (and (conjuction? expr) containsFalse) False
+      (and (conjuction? expr) containsTrue) (apply conjuction (filter (fn [arg] (not (True? arg))) args))
+      (and (disjunction? expr) containsFalse) (apply disjunction (filter (fn [arg] (not (False? arg))) args))
+      (and (disjunction? expr) containsTrue) True
+      :else expr
+    )
+  )
+)
+
+(defn update-expr 
+  "Update operation arguments with update function"
+  [expr argsUpdateFunction]
+  (cons (first expr) (map argsUpdateFunction (rest expr)))
+)
+
+(defn simplify 
+  "Simplify expr with some boolean laws"
+  [expr]
+  (if (var-const? expr) 
+    expr
+    (let [
+      simplifiedExpr (->> expr 
+                       (flatten-conjuction)
+                       (idempotent-law)
+                       (conjuction-inverse-law)
+                       (identity-law)
+                       (remove-one-arg-conjuct-disjunct)
+                      )
+    ]
+      (if (var-const? simplifiedExpr) 
+        simplifiedExpr
+        (update-expr simplifiedExpr simplify) 
+      )
+    )
+  )
+)
+
+
+(defn to-dnf
+  "Transform expr to DNF form"
+  [expr]
+  (simplify
+    (if (or (var-const? expr) (dnf? expr))
+      expr
+      (let [
+        newExpr (->> expr 
+                         (de-morgan)
+                         (remove-double-neg)
+                         (distribution)
+                )
+      ]
+        (if (or (var-const? newExpr) (dnf? newExpr)) 
+          newExpr
+          (update-expr newExpr to-dnf) 
+        )
+      )
     )
   )
 )
@@ -450,6 +618,33 @@
   )     
 )
 
+(deftest de-morgan-recur-test
+  (let [
+        vA (Var :a)
+        vB (Var :b)
+        vC (Var :c)
+        vD (Var :D)
+        conjuct (conjuction vA vB vC vD)
+        disjunct (disjunction vA vB vC vD)
+        nA (negation vA)
+        nB (negation vB)
+        nC (negation vC)
+        nD (negation vD)
+        recConjuct (conjuction (disjunction vA vB) (conjuction vC vD) vB)
+        recDisjuct (disjunction (disjunction vA vB) vC (conjuction vC vD vB))
+        ]
+    (is (= vA (de-morgan-recur vA)))
+    (is (= nA (de-morgan-recur nA)))
+    (is (= conjuct (de-morgan-recur conjuct)))
+    (is (= disjunct (de-morgan-recur disjunct)))
+    (is (= (conjuction nA nB nC nD) (de-morgan-recur (negation disjunct))))
+    (is (= (disjunction nA nB nC nD) (de-morgan-recur (negation conjuct))))
+
+    (is (= (disjunction (conjuction nA nB) (disjunction nC nD) nB) (de-morgan-recur (negation recConjuct))))
+    (is (= (conjuction (conjuction nA nB) nC (disjunction nC nD nB)) (de-morgan-recur (negation recDisjuct))))
+  )     
+)
+
 (deftest can-apply-distribution-check-test
   (let [
         vA (Var :a)
@@ -523,6 +718,53 @@
   )     
 )
 
+(deftest identity-law-test
+  (let [
+        vA (Var :a)
+        vB (Var :b)
+        ]
+    (is (= False  (identity-law (conjuction vA False vB))))
+    (is (= (conjuction vA vB) (identity-law (conjuction vA True vB))))
+    (is (= (disjunction vA vB) (identity-law (disjunction vA False vB))))
+    (is (= True (identity-law (disjunction vA True vB))))
+    (is (= (disjunction (conjuction vA vB)) (identity-law (disjunction (conjuction vA vB) False))))
+  )              
+)
+
+
+(deftest to-dnf-test
+  (let [
+        vA (Var :a)
+        vB (Var :b)
+        vC (Var :c)
+        vD (Var :d)
+        conjuct (conjuction vA vB vC vD)
+        disjunct (disjunction vA vB vC vD)
+        nA (negation vA)
+        nB (negation vB)
+        nC (negation vC)
+        nD (negation vD)
+        recConjuct (conjuction (disjunction vA vB) (conjuction vC vD) vB)
+        recDisjuct (disjunction (disjunction vA vB) vC (conjuction vC vD vB))
+        ]
+    (is (dnf? (to-dnf (conjuction (disjunction (conjuction nA nB) (conjuction vB nC) (conjuction vA vB)) (conjuction nA nB)))))
+    (is (dnf? (to-dnf (conjuction True vA))))
+    (is (dnf? (to-dnf (conjuction True (negation vA)))))
+    (is (dnf? (to-dnf (conjuction True (negation vA) vB False))))
+    (is (dnf? (to-dnf False)))
+    (is (dnf? (to-dnf vA)))
+    (is (dnf? (to-dnf nA)))
+    (is (dnf? (to-dnf (disjunction (conjuction True vA) vB))))
+    (is (dnf? (to-dnf (disjunction (conjuction True vA) vB (disjunction True vC)))))
+    (is (dnf? (to-dnf (conjuction vA (disjunction vA vB)))))
+    (is (dnf? (to-dnf (conjuction vA (disjunction vA vB) (disjunction vA vC)))))
+    (is (dnf? (to-dnf (negation (conjuction vA (disjunction vA vB) (disjunction vA vC))))))
+    (is (dnf? (to-dnf (negation (negation (conjuction vA (disjunction vA vB) (disjunction vA vC)))))))
+    (is (dnf? (to-dnf (negation (conjuction nA (negation (disjunction vA vB)) (negation (disjunction vA vC)))))))
+  )              
+)
+
+
 (true-check-test)
 (false-check-test)
 (const-check-test)
@@ -543,7 +785,10 @@
 (neg-disjunction-check-test)
 (remove-double-neg-test)
 (de-morgan-test)
+(de-morgan-recur-test)
 (can-apply-distribution-check-test)
 (distribution-test)
 (var-at-args-check-test)
 (absorption-test)
+(identity-law-test)
+(to-dnf-test)
